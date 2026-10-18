@@ -1,0 +1,21 @@
+# Java build output
+backend/target/
+
+# Frontend dependencies and builds
+frontend/node_modules/
+frontend/dist/
+
+# Local configuration and editor state
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+
+# Generated modernization metadata
+.github/modernize/
+backend/.github/modernize/
+
+# Local source document and logs
+Pandit ji Document.docx
+*.log
