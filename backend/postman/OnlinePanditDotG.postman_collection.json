@@ -1,0 +1,65 @@
+{
+  "info": {
+    "name": "OnlinePanditDotG Local API",
+    "description": "Local backend smoke checks. Register a user first; set userToken and IDs from response bodies as needed.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080/api" },
+    { "key": "userToken", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "panditId", "value": "1" },
+    { "key": "panditProfileId", "value": "" },
+    { "key": "activityId", "value": "1" },
+    { "key": "bookingId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Public marketplace",
+      "item": [
+        { "name": "List activities", "request": { "method": "GET", "url": "{{baseUrl}}/activities" } },
+        { "name": "Find Mumbai specialists", "request": { "method": "GET", "url": "{{baseUrl}}/pandits?city=Mumbai&country=India&activityId={{activityId}}" } }
+      ]
+    },
+    {
+      "name": "Identity",
+      "item": [
+        {
+          "name": "Register user",
+          "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 201) pm.collectionVariables.set('userToken', pm.response.json().accessToken);"], "type": "text/javascript" } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"fullName\": \"Asha Mehta\",\n  \"email\": \"asha@example.com\",\n  \"password\": \"a-long-local-password\",\n  \"phone\": \"+919876543210\",\n  \"city\": \"Mumbai\",\n  \"country\": \"India\"\n}" }, "url": "{{baseUrl}}/auth/register" }
+        },
+        { "name": "Login", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"asha@example.com\",\n  \"password\": \"a-long-local-password\"\n}" }, "url": "{{baseUrl}}/auth/login" } },
+        { "name": "Current user", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }], "url": "{{baseUrl}}/auth/me" } },
+        { "name": "Apply as practitioner", "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 201) pm.collectionVariables.set('panditProfileId', pm.response.json().id);"], "type": "text/javascript" } }], "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"yearsExperience\": 12,\n  \"dateOfBirth\": \"1988-04-12\",\n  \"city\": \"Mumbai\",\n  \"region\": \"Maharashtra\",\n  \"country\": \"India\",\n  \"religion\": \"Hindu\",\n  \"languages\": \"Hindi, Sanskrit\",\n  \"specialties\": \"Griha Pravesh, Havan\"\n}" }, "url": "{{baseUrl}}/pandits/apply" } }
+      ]
+    },
+    {
+      "name": "Booking flow",
+      "item": [
+        {
+          "name": "Create booking request",
+          "event": [{ "listen": "test", "script": { "exec": ["if (pm.response.code === 201) pm.collectionVariables.set('bookingId', pm.response.json().id);"], "type": "text/javascript" } }],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"panditId\": {{panditId}},\n  \"activityId\": {{activityId}},\n  \"scheduledDate\": \"2027-02-14\",\n  \"serviceAddress\": \"12 Example Road, Mumbai, India\"\n}" }, "url": "{{baseUrl}}/bookings" }
+        },
+        { "name": "My bookings", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }], "url": "{{baseUrl}}/bookings/mine" } },
+        { "name": "Reschedule my booking", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"scheduledDate\": \"2027-02-16\"\n}" }, "url": "{{baseUrl}}/bookings/{{bookingId}}/reschedule" } },
+        { "name": "Cancel my booking", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }], "url": "{{baseUrl}}/bookings/{{bookingId}}/cancel" } },
+        { "name": "Submit feedback after completion", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"bookingId\": {{bookingId}},\n  \"rating\": 5,\n  \"comment\": \"Clear and thoughtful ceremony.\"\n}" }, "url": "{{baseUrl}}/feedback" } },
+        { "name": "My notifications", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }], "url": "{{baseUrl}}/notifications?unreadOnly=true&page=0&size=20" } },
+        { "name": "Mark all notifications read", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }], "url": "{{baseUrl}}/notifications/read-all" } },
+        { "name": "Ask ceremony assistant", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"message\": \"What should I discuss with a practitioner for a house-entry ceremony?\"\n}" }, "url": "{{baseUrl}}/ai/chat" } }
+      ]
+    },
+    {
+      "name": "Admin operations",
+      "item": [
+        { "name": "Pending practitioner applications", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/admin/pandits/pending" } },
+        { "name": "Approve practitioner application", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/admin/pandits/{{panditProfileId}}/approval?approved=true" } },
+        { "name": "Monitor bookings", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/admin/bookings" } },
+        { "name": "List users", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/admin/users" } },
+        { "name": "Pending feedback moderation", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/admin/feedback/pending" } }
+      ]
+    }
+  ]
+}

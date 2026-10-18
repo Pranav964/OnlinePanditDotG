@@ -1,0 +1,50 @@
+server:
+  port: ${SERVER_PORT:8080}
+spring:
+  application:
+    name: onlinepandit-platform
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/onlinepandit?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${SPRING_DATASOURCE_USERNAME:pandit}
+    password: ${SPRING_DATASOURCE_PASSWORD:localdev}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  ai:
+    model:
+      chat: ${AI_MODEL_CHAT:none}
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+resilience4j:
+  circuitbreaker:
+    instances:
+      aiAssistant:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+app:
+  ai:
+    enabled: ${AI_ENABLED:false}
+  bootstrap-admin:
+    email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+  jwt:
+    secret: ${JWT_SECRET:b25saW5lcGFuZGl0LWxvY2FsLXNlY3JldC0zMi1ieXRlcy1sZW5ndGg=}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:720}
+  kafka:
+    enabled: ${KAFKA_ENABLED:false}
