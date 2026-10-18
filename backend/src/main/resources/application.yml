@@ -26,6 +26,17 @@ spring:
       chat: ${AI_MODEL_CHAT:none}
     openai:
       api-key: ${OPENAI_API_KEY:}
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -37,7 +48,34 @@ resilience4j:
         minimum-number-of-calls: 5
         failure-rate-threshold: 50
         wait-duration-in-open-state: 30s
+      mailDelivery:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
 app:
+  payments:
+    platform-fee-bps: ${PLATFORM_FEE_BPS:1000}
+    stripe:
+      secret-key: ${STRIPE_SECRET_KEY:}
+      webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+      success-url: ${PAYMENT_SUCCESS_URL:http://localhost:5173/?payment=success}
+      cancel-url: ${PAYMENT_CANCEL_URL:http://localhost:5173/?payment=cancelled}
+      connect-webhook-secret: ${STRIPE_CONNECT_WEBHOOK_SECRET:}
+      connect-refresh-url: ${STRIPE_CONNECT_REFRESH_URL:http://localhost:5173/?connect=refresh}
+      connect-return-url: ${STRIPE_CONNECT_RETURN_URL:http://localhost:5173/?connect=return}
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:no-reply@onlinepandit.example}
+  sms:
+    enabled: ${SMS_ENABLED:false}
+    reminders-enabled: ${SMS_REMINDERS_ENABLED:false}
+    reminder-cron: ${SMS_REMINDER_CRON:0 */15 8-20 * * *}
+    reminder-zone: ${SMS_REMINDER_ZONE:UTC}
+    twilio:
+      account-sid: ${TWILIO_ACCOUNT_SID:}
+      auth-token: ${TWILIO_AUTH_TOKEN:}
+      from-number: ${TWILIO_FROM_NUMBER:}
   ai:
     enabled: ${AI_ENABLED:false}
   bootstrap-admin:

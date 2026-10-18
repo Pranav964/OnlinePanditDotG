@@ -38,6 +38,10 @@ public class Pandit {
     private boolean approved;
     @Column(name = "user_id")
     private Long userId;
+    @Column(name = "stripe_account_id", length = 190)
+    private String stripeAccountId;
+    @Column(name = "stripe_payouts_enabled", nullable = false)
+    private boolean stripePayoutsEnabled;
     protected Pandit() { }
     public Pandit(String fullName, int yearsExperience, LocalDate dateOfBirth, String city, String region,
                   String country, String religion, String languages, String specialties, Long userId) {
@@ -70,7 +74,11 @@ public class Pandit {
     public int getReviewCount() { return reviewCount; }
     public boolean isApproved() { return approved; }
     public Long getUserId() { return userId; }
+    public String getStripeAccountId() { return stripeAccountId; }
+    public boolean isStripePayoutsEnabled() { return stripePayoutsEnabled; }
     public void setApproved(boolean approved) { this.approved = approved; }
+    public void setStripeAccountId(String stripeAccountId) { this.stripeAccountId = stripeAccountId; }
+    public void setStripePayoutsEnabled(boolean stripePayoutsEnabled) { this.stripePayoutsEnabled = stripePayoutsEnabled; }
     public void recordReview(int reviewRating) {
         int updatedReviewCount = reviewCount + 1;
         rating = rating.multiply(BigDecimal.valueOf(reviewCount)).add(BigDecimal.valueOf(reviewRating))

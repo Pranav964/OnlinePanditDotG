@@ -19,7 +19,7 @@ public class AdminController {
     @GetMapping("/bookings")
     public List<BookingResponse> bookings() {
         return bookings.findAll().stream().map(booking -> new BookingResponse(booking.getId(), booking.getUserId(),
-                booking.getPanditId(), booking.getActivityId(), booking.getScheduledDate(), booking.getServiceAddress(),
+            booking.getPanditId(), booking.getActivityId(), booking.getScheduledDate(), booking.getScheduledTime(), booking.getServiceAddress(),
                 booking.getTotalAmount(), booking.getCurrency(), booking.getBookingStatus(), booking.getPaymentStatus(),
                 booking.getCreatedAt())).toList();
     }

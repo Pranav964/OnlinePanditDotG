@@ -8,6 +8,7 @@ import java.util.List;
 public interface PanditRepository extends JpaRepository<Pandit, Long> {
        List<Pandit> findByApprovedFalseOrderByIdAsc();
        java.util.Optional<Pandit> findByUserId(Long userId);
+       java.util.Optional<Pandit> findByStripeAccountId(String stripeAccountId);
 
     @Query("select p from Pandit p where p.approved = true " +
            "and (:city is null or lower(p.city) = lower(:city)) " +

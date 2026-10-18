@@ -1,0 +1,6 @@
+ALTER TABLE pandits
+    ADD COLUMN stripe_account_id VARCHAR(190) NULL UNIQUE,
+    ADD COLUMN stripe_payouts_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE payments
+    ADD COLUMN platform_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00;

@@ -7,6 +7,7 @@ import com.onlinepandit.marketplace.Pandit;
 import com.onlinepandit.marketplace.PanditRepository;
 import com.onlinepandit.notification.NotificationService;
 import com.onlinepandit.security.JwtAuthenticationFilter.UserPrincipal;
+import com.onlinepandit.notification.SmsService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -18,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 @RestController
@@ -29,16 +31,19 @@ public class BookingController {
     private final NotificationService notifications;
     private final UserAccountRepository users;
     private final ObjectProvider<BookingEventPublisher> eventPublisher;
+    private final ObjectProvider<SmsService> smsService;
 
     public BookingController(BookingRepository bookings, PanditRepository pandits, ActivityRepository activities,
                              NotificationService notifications, UserAccountRepository users,
-                             ObjectProvider<BookingEventPublisher> eventPublisher) {
+                             ObjectProvider<BookingEventPublisher> eventPublisher,
+                             ObjectProvider<SmsService> smsService) {
         this.bookings = bookings;
         this.pandits = pandits;
         this.activities = activities;
         this.notifications = notifications;
         this.users = users;
         this.eventPublisher = eventPublisher;
+        this.smsService = smsService;
     }
 
     @PostMapping
@@ -55,7 +60,7 @@ public class BookingController {
         Activity activity = activities.findById(request.activityId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Activity not found"));
         Booking booking = bookings.save(new Booking(user.id(), pandit.getId(), activity.getId(),
-                request.scheduledDate(), request.serviceAddress().trim(), activity.getBasePrice()));
+            request.scheduledDate(), request.scheduledTime(), request.serviceAddress().trim(), activity.getBasePrice()));
         notifications.create(user.id(), "BOOKING", "Booking request received",
                 "Your " + activity.getName() + " request has been sent to " + pandit.getFullName() + ".");
         if (pandit.getUserId() != null) {
@@ -64,6 +69,7 @@ public class BookingController {
         }
         BookingEventPublisher publisher = eventPublisher.getIfAvailable();
         if (publisher != null) publisher.publish(booking);
+        sendSmsAfterCommit(booking, "A new booking request was received.");
         return response(booking);
     }
 
@@ -79,12 +85,19 @@ public class BookingController {
         UserPrincipal user = (UserPrincipal) authentication.getPrincipal();
         Booking booking = bookings.findById(bookingId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         if (!booking.getUserId().equals(user.id())) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if ("PROCESSING".equals(booking.getPaymentStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Wait for the active payment checkout to finish or expire before cancelling");
+        }
+        if ("PAID".equals(booking.getPaymentStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Paid bookings require support to review a refund");
+        }
         if (!"PENDING".equals(booking.getBookingStatus()) && !"CONFIRMED".equals(booking.getBookingStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only pending or confirmed bookings can be cancelled");
         }
         booking.setBookingStatus("CANCELLED");
         Booking saved = bookings.save(booking);
         notifyPandit(saved, "Booking cancelled", "Booking " + saved.getId() + " was cancelled by the customer.");
+        sendSmsAfterCommit(saved, "Your booking was cancelled.");
         return response(saved);
     }
 
@@ -95,15 +108,19 @@ public class BookingController {
         UserPrincipal user = (UserPrincipal) authentication.getPrincipal();
         Booking booking = bookings.findById(bookingId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         if (!booking.getUserId().equals(user.id())) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if ("PROCESSING".equals(booking.getPaymentStatus()) || "PAID".equals(booking.getPaymentStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A booking with an active or completed payment cannot be rescheduled");
+        }
         if (!"PENDING".equals(booking.getBookingStatus()) && !"CONFIRMED".equals(booking.getBookingStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only pending or confirmed bookings can be rescheduled");
         }
         if (request.scheduledDate().isBefore(LocalDate.now())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Booking date must be today or later");
         }
-        booking.rescheduleTo(request.scheduledDate());
+        booking.rescheduleTo(request.scheduledDate(), request.scheduledTime());
         Booking saved = bookings.save(booking);
         notifyPandit(saved, "Booking rescheduled", "Booking " + saved.getId() + " was moved to " + saved.getScheduledDate() + ".");
+        sendSmsAfterCommit(saved, "Your booking was rescheduled.");
         return response(saved);
     }
 
@@ -128,6 +145,9 @@ public class BookingController {
                 .map(pandit -> user.id().equals(pandit.getUserId())).orElse(false);
         if (!admin && !assignedPandit) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         String next = request.status().toUpperCase();
+        if (next.equals("CANCELLED") && ("PROCESSING".equals(booking.getPaymentStatus()) || "PAID".equals(booking.getPaymentStatus()))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "An active or completed payment must be resolved before cancellation");
+        }
         boolean allowed = switch (booking.getBookingStatus()) {
             case "PENDING" -> next.equals("CONFIRMED") || next.equals("CANCELLED");
             case "CONFIRMED" -> next.equals("IN_PROGRESS") || next.equals("CANCELLED");
@@ -139,12 +159,13 @@ public class BookingController {
         Booking saved = bookings.save(booking);
         notifications.create(booking.getUserId(), "BOOKING", "Booking " + next.toLowerCase(),
                 "Your booking " + booking.getId() + " is now " + next.toLowerCase().replace('_', ' ') + ".");
+        sendSmsAfterCommit(saved, "Your booking status is now " + next.toLowerCase().replace('_', ' ') + ".");
         return response(saved);
     }
 
     private static BookingResponse response(Booking booking) {
         return new BookingResponse(booking.getId(), booking.getUserId(), booking.getPanditId(), booking.getActivityId(),
-                booking.getScheduledDate(), booking.getServiceAddress(), booking.getTotalAmount(), booking.getCurrency(),
+            booking.getScheduledDate(), booking.getScheduledTime(), booking.getServiceAddress(), booking.getTotalAmount(), booking.getCurrency(),
                 booking.getBookingStatus(), booking.getPaymentStatus(), booking.getCreatedAt());
     }
 
@@ -153,7 +174,8 @@ public class BookingController {
         String panditName = pandits.findById(booking.getPanditId()).map(Pandit::getFullName).orElse("Practitioner");
         String activityName = activities.findById(booking.getActivityId()).map(Activity::getName).orElse("Ceremony");
         return new BookingDashboardResponse(booking.getId(), booking.getUserId(), userName, booking.getPanditId(),
-                panditName, booking.getActivityId(), activityName, booking.getScheduledDate(), booking.getServiceAddress(),
+            panditName, booking.getActivityId(), activityName, booking.getScheduledDate(), booking.getScheduledTime(),
+            booking.getServiceAddress(),
                 booking.getTotalAmount(), booking.getCurrency(), booking.getBookingStatus(), booking.getPaymentStatus(),
                 booking.getCreatedAt());
     }
@@ -164,15 +186,22 @@ public class BookingController {
                 .ifPresent(account -> notifications.create(account.getId(), "BOOKING", title, message));
     }
 
+    private void sendSmsAfterCommit(Booking booking, String message) {
+        SmsService service = smsService.getIfAvailable();
+        if (service != null) service.sendAfterCommit(booking.getId(), message);
+    }
+
     public record CreateBookingRequest(@NotNull Long panditId, @NotNull Long activityId,
-                                       @NotNull LocalDate scheduledDate, @NotBlank String serviceAddress) { }
+                                       @NotNull LocalDate scheduledDate, @NotNull LocalTime scheduledTime,
+                                       @NotBlank String serviceAddress) { }
     public record StatusRequest(@NotBlank String status) { }
-    public record RescheduleRequest(@NotNull LocalDate scheduledDate) { }
+    public record RescheduleRequest(@NotNull LocalDate scheduledDate, @NotNull LocalTime scheduledTime) { }
     public record BookingResponse(Long id, Long userId, Long panditId, Long activityId, LocalDate scheduledDate,
+                                  LocalTime scheduledTime,
                                   String serviceAddress, java.math.BigDecimal totalAmount, String currency,
                                   String bookingStatus, String paymentStatus, java.time.Instant createdAt) { }
     public record BookingDashboardResponse(Long id, Long userId, String userName, Long panditId, String panditName,
                                            Long activityId, String activityName, LocalDate scheduledDate,
-                                           String serviceAddress, java.math.BigDecimal totalAmount, String currency,
+                                           LocalTime scheduledTime, String serviceAddress, java.math.BigDecimal totalAmount, String currency,
                                            String bookingStatus, String paymentStatus, java.time.Instant createdAt) { }
 }

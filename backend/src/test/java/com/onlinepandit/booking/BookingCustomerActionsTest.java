@@ -11,10 +11,12 @@ import com.onlinepandit.identity.UserAccountRepository;
 import com.onlinepandit.marketplace.ActivityRepository;
 import com.onlinepandit.marketplace.PanditRepository;
 import com.onlinepandit.notification.NotificationService;
+import com.onlinepandit.notification.SmsService;
 import com.onlinepandit.security.JwtAuthenticationFilter.UserPrincipal;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +41,7 @@ class BookingCustomerActionsTest {
         bookings = mock(BookingRepository.class);
         pandits = mock(PanditRepository.class);
         controller = new BookingController(bookings, pandits, mock(ActivityRepository.class),
-                mock(NotificationService.class), mock(UserAccountRepository.class), mock(ObjectProvider.class));
+            mock(NotificationService.class), mock(UserAccountRepository.class), mock(ObjectProvider.class), mock(ObjectProvider.class));
         booking = mock(Booking.class);
         authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(new UserPrincipal(USER_ID, "user@example.com", "USER"));
@@ -84,9 +86,9 @@ class BookingCustomerActionsTest {
         when(booking.getBookingStatus()).thenReturn("CONFIRMED");
         LocalDate requestedDate = LocalDate.now().plusDays(10);
 
-        controller.reschedule(BOOKING_ID, new BookingController.RescheduleRequest(requestedDate), authentication);
+        controller.reschedule(BOOKING_ID, new BookingController.RescheduleRequest(requestedDate, LocalTime.of(10, 30)), authentication);
 
-        verify(booking).rescheduleTo(requestedDate);
+        verify(booking).rescheduleTo(requestedDate, LocalTime.of(10, 30));
         verify(bookings).save(booking);
     }
 
@@ -96,7 +98,7 @@ class BookingCustomerActionsTest {
 
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
                 () -> controller.reschedule(BOOKING_ID,
-                        new BookingController.RescheduleRequest(LocalDate.now().plusDays(10)), authentication));
+                        new BookingController.RescheduleRequest(LocalDate.now().plusDays(10), LocalTime.of(10, 30)), authentication));
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
         verify(bookings, never()).save(booking);

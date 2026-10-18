@@ -28,6 +28,14 @@ export async function authenticate(path, payload) {
   })
 }
 
+export function getNotificationPreferences(token) {
+  return request('/auth/me/notification-preferences', { headers: bearer(token) })
+}
+
+export function updateNotificationPreferences(smsOptIn, token) {
+  return request('/auth/me/notification-preferences', { method: 'PATCH', headers: bearer(token), body: JSON.stringify({ smsOptIn }) })
+}
+
 export function getCurrentUser(token) {
   return request('/auth/me', { headers: bearer(token) })
 }
@@ -44,8 +52,36 @@ export function getPanditBookings(token) {
   return request('/bookings/pandit', { headers: bearer(token) })
 }
 
+export function startPayoutOnboarding(token) {
+  return request('/pandits/me/payments/onboarding', { method: 'POST', headers: bearer(token) })
+}
+
+export function getPayoutStatus(token) {
+  return request('/pandits/me/payments/status', { headers: bearer(token) })
+}
+
+export function submitComplaint(payload, token) {
+  return request('/complaints', { method: 'POST', headers: bearer(token), body: JSON.stringify(payload) })
+}
+
+export function getMyComplaints(token) {
+  return request('/complaints/mine', { headers: bearer(token) })
+}
+
+export function getAdminComplaints(token) {
+  return request('/admin/complaints', { headers: bearer(token) })
+}
+
+export function updateComplaint(id, payload, token) {
+  return request(`/admin/complaints/${id}`, { method: 'PATCH', headers: bearer(token), body: JSON.stringify(payload) })
+}
+
 export function getAdminBookings(token) {
   return request('/admin/bookings', { headers: bearer(token) })
+}
+
+export function getAdminPayments(token) {
+  return request('/payments/admin/all', { headers: bearer(token) })
 }
 
 export function getAdminUsers(token) {
@@ -80,12 +116,23 @@ export function cancelBooking(id, token) {
   return request(`/bookings/${id}/cancel`, { method: 'PATCH', headers: bearer(token) })
 }
 
-export function rescheduleBooking(id, scheduledDate, token) {
-  return request(`/bookings/${id}/reschedule`, { method: 'PATCH', headers: bearer(token), body: JSON.stringify({ scheduledDate }) })
+export function rescheduleBooking(id, scheduledDate, scheduledTime, token) {
+  return request(`/bookings/${id}/reschedule`, { method: 'PATCH', headers: bearer(token), body: JSON.stringify({ scheduledDate, scheduledTime }) })
 }
 
 export function submitFeedback(payload, token) {
   return request('/feedback', { method: 'POST', headers: bearer(token), body: JSON.stringify(payload) })
+}
+
+export function createPaymentCheckout(bookingId, token) {
+  return request(`/payments/bookings/${bookingId}/checkout`, { method: 'POST', headers: bearer(token) })
+}
+
+export function downloadPaymentReceipt(bookingId, token) {
+  return fetch(`${API_BASE}/payments/bookings/${bookingId}/receipt`, { headers: bearer(token) }).then(async (response) => {
+    if (!response.ok) throw new Error((await response.text()) || `Request failed (${response.status})`)
+    return response.blob()
+  })
 }
 
 export function getNotifications(token, { unreadOnly = false, category = '', page = 0, size = 20 } = {}) {

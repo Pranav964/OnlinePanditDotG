@@ -8,6 +8,8 @@ Browser (React + Vite :5173)
        -> MySQL 8 (onlinepandit)
        -> Kafka (optional booking-events producer)
        -> OpenAI via Spring AI (optional, Resilience4j circuit breaker)
+        -> Stripe Checkout + Connect (test credentials, signed webhooks, configurable fee)
+        -> SMTP receipt email (optional, after commit)
        -> STOMP WebSocket (/ws) for in-app notifications
 ```
 
@@ -29,7 +31,7 @@ The current backend is one deployable modular application. This is deliberate fo
 
 ## Data model
 
-`user_accounts` stores client and practitioner-login identity, role, contact/location, and optional date of birth. `pandits` stores experience, date of birth, religion, languages, specialties, approval, and service location. `activities` stores selectable ceremony type and base price. `bookings` connects user, approved practitioner, and activity with service date/address, server-calculated price, booking status, and payment status. `feedback` is unique per completed booking and hidden until moderated. `notifications` stores recipient, category, read state, and history. Prices use INR for this MVP.
+`user_accounts` stores client and practitioner-login identity, role, contact/location, optional date of birth, and SMS opt-in state. `pandits` stores experience, date of birth, religion, languages, specialties, approval, service location, and Stripe Connect readiness. `activities` stores selectable ceremony type and base price. `bookings` connects user, approved practitioner, and activity with local service date/time/address, server-calculated price, booking status, and payment status. `payments` stores provider session/payment state, fee, and receipt reference. `complaints` links support issues to an owned booking/payment. `feedback` is unique per completed booking and hidden until moderated. `notifications` stores recipient, category, read state, and history. Prices use INR for this MVP.
 
 ## Booking flow
 
@@ -37,8 +39,11 @@ The current backend is one deployable modular application. This is deliberate fo
 2. A customer registers or signs in; passwords are BCrypt-hashed and the API returns a signed JWT.
 3. The customer submits practitioner, activity, date, and address. The API verifies the date and approval, calculates price from the activity record, and creates a `PENDING` booking with payment `PENDING`.
 4. A persistent notification is created for the customer and (when linked to an account) practitioner. The user sees it through WebSocket and notification history. Kafka publication is opt-in.
-5. An approved practitioner accepts/declines and advances the booking to in-progress/completed. Customers can cancel/reschedule only pending or confirmed requests.
-6. The customer submits feedback after completion; admins publish or keep it hidden.
+5. An approved practitioner accepts/declines and advances the booking to in-progress/completed. Customers can cancel/reschedule only before checkout starts.
+6. Approved practitioners onboard to Stripe Connect Express. Checkout creates a destination charge with a configurable fee; `PLATFORM_FEE_BPS=1000` is a development placeholder, not an approved business rate.
+7. Stripe's signed webhook verifies session, amount, currency, and booking before marking paid. A PDF receipt is available and optional SMTP email sends after commit.
+8. Customers can submit complaints linked to their bookings/payments; admins resolve them and status changes are notified.
+9. The customer submits feedback after completion; admins publish or keep it hidden.
 
 ## Patterns and resilience
 
@@ -62,4 +67,4 @@ Do not split the booking transaction by synchronous database sharing. Use Kafka 
 
 ## Not enabled yet
 
-Payment collection/receipt emails, SMS reminders/Twilio, FCM push, email provider, multi-currency/tax, service-specific databases, API gateway, production secrets/HTTPS, CI/CD, monitoring, load tests, and mobile app need provider accounts, infrastructure configuration, and integration tests. The application intentionally does not accept a client-provided payment-success flag.
+Live Stripe processing/payouts, legal/tax setup, refunds, Twilio credentials/consent campaigns, FCM push, production SMTP, multi-currency/tax, service-specific databases, API gateway, production secrets/HTTPS, CI/CD, monitoring, load tests, and mobile app need provider accounts, infrastructure configuration, and integration tests. SMS code is opt-in and disabled until configured. Stripe and SMTP code paths are present but disabled until configured. The application intentionally does not accept a client-provided payment-success flag.

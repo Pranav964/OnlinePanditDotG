@@ -2,8 +2,9 @@ package com.onlinepandit.booking;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "bookings")
@@ -18,6 +19,8 @@ public class Booking {
     private Long activityId;
     @Column(name = "scheduled_date", nullable = false)
     private LocalDate scheduledDate;
+    @Column(name = "scheduled_time", nullable = false)
+    private LocalTime scheduledTime;
     @Column(name = "service_address", nullable = false, length = 500)
     private String serviceAddress;
     @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
@@ -28,15 +31,19 @@ public class Booking {
     private String bookingStatus = "PENDING";
     @Column(name = "payment_status", nullable = false, length = 24)
     private String paymentStatus = "PENDING";
+    @Column(name = "reminder_sent_at")
+    private Instant reminderSentAt;
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
     protected Booking() { }
-    public Booking(Long userId, Long panditId, Long activityId, LocalDate scheduledDate, String serviceAddress, BigDecimal totalAmount) {
+    public Booking(Long userId, Long panditId, Long activityId, LocalDate scheduledDate, LocalTime scheduledTime,
+                   String serviceAddress, BigDecimal totalAmount) {
         this.userId = userId;
         this.panditId = panditId;
         this.activityId = activityId;
         this.scheduledDate = scheduledDate;
+        this.scheduledTime = scheduledTime;
         this.serviceAddress = serviceAddress;
         this.totalAmount = totalAmount;
     }
@@ -45,6 +52,7 @@ public class Booking {
     public Long getPanditId() { return panditId; }
     public Long getActivityId() { return activityId; }
     public LocalDate getScheduledDate() { return scheduledDate; }
+    public LocalTime getScheduledTime() { return scheduledTime; }
     public String getServiceAddress() { return serviceAddress; }
     public BigDecimal getTotalAmount() { return totalAmount; }
     public String getCurrency() { return currency; }
@@ -52,5 +60,12 @@ public class Booking {
     public String getPaymentStatus() { return paymentStatus; }
     public Instant getCreatedAt() { return createdAt; }
     public void setBookingStatus(String bookingStatus) { this.bookingStatus = bookingStatus; }
-    public void rescheduleTo(LocalDate scheduledDate) { this.scheduledDate = scheduledDate; }
+    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+    public void rescheduleTo(LocalDate scheduledDate, LocalTime scheduledTime) {
+        this.scheduledDate = scheduledDate;
+        this.scheduledTime = scheduledTime;
+        this.reminderSentAt = null;
+    }
+    public void markReminderSent() { this.reminderSentAt = Instant.now(); }
+    public Instant getReminderSentAt() { return reminderSentAt; }
 }

@@ -29,6 +29,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/payments/webhooks/stripe").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/pandits/me/payments/webhook").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/activities", "/api/pandits", "/api/pandits/*/feedback").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/ws/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

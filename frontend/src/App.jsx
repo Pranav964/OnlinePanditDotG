@@ -25,7 +25,7 @@ export default function App() {
   const [activityId, setActivityId] = useState('')
   const [selected, setSelected] = useState(null)
   const [modal, setModal] = useState(false)
-  const [form, setForm] = useState({ date: '', address: '' })
+  const [form, setForm] = useState({ date: '', time: '09:00', address: '' })
   const [authForm, setAuthForm] = useState({ fullName: '', email: '', password: '', city: '', country: '', dateOfBirth: '' })
   const [authMode, setAuthMode] = useState('login')
   const [loggedInUser, setLoggedInUser] = useState(() => {
@@ -39,6 +39,16 @@ export default function App() {
 
   useEffect(() => {
     getActivities().then(setActivities).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const paymentResult = new URLSearchParams(window.location.search).get('payment')
+    const connectResult = new URLSearchParams(window.location.search).get('connect')
+    if (paymentResult || connectResult) {
+      setWorkspaceOpen(true)
+      setWorkspaceSection(paymentResult ? 'bookings' : 'payouts')
+      window.history.replaceState({}, '', window.location.pathname)
+    }
   }, [])
 
   async function searchPandits(event) {
@@ -66,6 +76,7 @@ export default function App() {
         panditId: selected.id,
         activityId: chosenActivity.id,
         scheduledDate: form.date,
+        scheduledTime: form.time,
         serviceAddress: form.address,
       }, localStorage.getItem('onlinepandit-token'))
       setStatus('Your request is in. Track its status and updates from your workspace.')
@@ -116,6 +127,8 @@ export default function App() {
             <label className="search-field country-field"><Globe2 size={17} /><span><small>COUNTRY</small><input value={country} onChange={(event) => setCountry(event.target.value)} placeholder="Country" aria-label="Country" /></span></label>
             <label className="search-field religion-field"><Sparkles size={17} /><span><small>TRADITION</small><select value={religion} onChange={(event) => setReligion(event.target.value)} aria-label="Religion or tradition">{['Hindu', 'Multi-faith', 'Christian', 'Muslim', 'Sikh', 'Buddhist', 'Jain', 'Other'].map((value) => <option key={value}>{value}</option>)}</select></span></label>
             <label className="search-field activity-field"><Sparkles size={18} /><span><small>WHAT ARE YOU PLANNING?</small><select value={activityId} onChange={(event) => setActivityId(event.target.value)} aria-label="Choose a ceremony"><option value="">Choose a ceremony</option>{activities.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></span><ChevronDown size={15} className="field-chevron" /></label>
+            <label className="search-field schedule-field"><CalendarDays size={17} /><span><small>CEREMONY DATE</small><input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} aria-label="Ceremony date" /></span></label>
+            <label className="search-field schedule-field"><Clock3 size={17} /><span><small>LOCAL TIME</small><input type="time" required value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} aria-label="Ceremony local time" /></span></label>
             <button className="search-submit" type="submit"><Search size={17} /><span>Find a specialist</span></button>
           </form>
           <div className="hero-note"><ShieldCheck size={16} /> Every specialist is personally verified</div>

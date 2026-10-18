@@ -24,6 +24,10 @@ public class UserAccount {
     private String country;
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
+    @Column(name = "sms_opt_in", nullable = false)
+    private boolean smsOptIn;
+    @Column(name = "sms_opt_in_updated_at")
+    private Instant smsOptInUpdatedAt;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Role role = Role.USER;
@@ -56,9 +60,15 @@ public class UserAccount {
     public String getCity() { return city; }
     public String getCountry() { return country; }
     public LocalDate getDateOfBirth() { return dateOfBirth; }
+    public boolean isSmsOptIn() { return smsOptIn; }
+    public Instant getSmsOptInUpdatedAt() { return smsOptInUpdatedAt; }
     public Role getRole() { return role; }
     public Instant getCreatedAt() { return createdAt; }
     public void setRole(Role role) { this.role = role; }
+    public void setSmsOptIn(boolean smsOptIn) {
+        this.smsOptIn = smsOptIn;
+        this.smsOptInUpdatedAt = Instant.now();
+    }
 
     public enum Role { USER, PANDIT, ADMIN }
 }

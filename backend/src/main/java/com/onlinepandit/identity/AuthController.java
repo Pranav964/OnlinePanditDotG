@@ -11,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -51,13 +52,31 @@ public class AuthController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 
+    @GetMapping("/me/notification-preferences")
+    public NotificationPreferences notificationPreferences(Authentication authentication) {
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        UserAccount user = users.findById(principal.id()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        return new NotificationPreferences(user.isSmsOptIn(), user.getSmsOptInUpdatedAt());
+    }
+
+    @PatchMapping("/me/notification-preferences")
+    @Transactional
+    public NotificationPreferences updateNotificationPreferences(@Valid @RequestBody NotificationPreferencesRequest request,
+                                                                 Authentication authentication) {
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        UserAccount user = users.findById(principal.id()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        user.setSmsOptIn(request.smsOptIn());
+        users.save(user);
+        return new NotificationPreferences(user.isSmsOptIn(), user.getSmsOptInUpdatedAt());
+    }
+
     private AuthResponse response(UserAccount user) {
         return new AuthResponse(jwtService.issue(user), "Bearer", userResponse(user));
     }
 
     private static UserResponse userResponse(UserAccount user) {
         return new UserResponse(user.getId(), user.getFullName(), user.getEmail(), user.getPhone(), user.getCity(),
-            user.getCountry(), user.getDateOfBirth(), user.getRole().name());
+            user.getCountry(), user.getDateOfBirth(), user.isSmsOptIn(), user.getRole().name());
     }
 
     public record RegisterRequest(@NotBlank @Size(max = 120) String fullName, @Email @NotBlank String email,
@@ -66,5 +85,7 @@ public class AuthController {
     public record LoginRequest(@Email @NotBlank String email, @NotBlank String password) { }
     public record AuthResponse(String accessToken, String tokenType, UserResponse user) { }
     public record UserResponse(Long id, String fullName, String email, String phone, String city, String country,
-                               java.time.LocalDate dateOfBirth, String role) { }
+                               java.time.LocalDate dateOfBirth, boolean smsOptIn, String role) { }
+    public record NotificationPreferencesRequest(boolean smsOptIn) { }
+    public record NotificationPreferences(boolean smsOptIn, java.time.Instant updatedAt) { }
 }
